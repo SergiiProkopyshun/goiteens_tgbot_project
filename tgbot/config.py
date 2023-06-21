@@ -3,6 +3,11 @@ from dataclasses import dataclass
 from environs import Env
 
 
+
+@dataclass
+class WeatherConfig:
+    token: str
+
 @dataclass
 class DbConfig:
     host: str
@@ -28,6 +33,7 @@ class Config:
     tg_bot: TgBot
     db: DbConfig
     misc: Miscellaneous
+    weather: WeatherConfig
 
 
 def load_config(path: str = None):
@@ -46,5 +52,6 @@ def load_config(path: str = None):
             user=env.str('DB_USER'),
             database=env.str('DB_NAME')
         ),
-        misc=Miscellaneous()
+        misc=Miscellaneous(),
+        weather=WeatherConfig(token=env.str('OPEN_WEATHER_TOKEN'))
     )
