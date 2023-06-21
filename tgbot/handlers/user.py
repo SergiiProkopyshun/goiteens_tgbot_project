@@ -1,21 +1,28 @@
 import datetime
 import aiohttp
 from aiogram import Dispatcher, types
+from aiogram.dispatcher import FSMContext
 from aiogram.types import Message
 from aiogram.dispatcher.filters import Text
 
 from tgbot.keyboards.inline import kbd, kbd2
 from tgbot.misc.get_time import get_time_of_day
+from tgbot.misc.states import SimpleStatsGroup
 
 
-async def start_command(message: types.Message):
+async def start_command(event: types.Message | types.CallbackQuery, state: FSMContext):
+    if type(event) == types.CallbackQuery:
+        await event.answer()
+        message = event.message
+    else:
+        message = event
     time_of_day = get_time_of_day()
-    await message.reply(
+    await message.answer(
         f"<b>✋🏻 {time_of_day}! Я, радий надати Вам інформацію про погоду в будь-якому куточку світу. Для цього потрібно вписати місто, яке вас цікавить, і я надам вам дані про прогноз погоди.</b>\n\n<i>Зверніть увагу: деякі міста потрібно писати лише англійською мовою.</i>",
-        reply_markup=kbd2
-    )
+        reply_markup=kbd2)
+    await state.finish()
 
-async def get_weather(message: types.Message):
+async def get_weather(message: types.Message, state: FSMContext):
     code_to_smile = {
         "Clear": "Ясно \U00002600",
         "Clouds": "Хмарно \U00002601",
@@ -79,21 +86,22 @@ async def get_weather(message: types.Message):
             f"<i>Вологість: </i>{humidity}%\n<i>Тиск: </i>{pressure} мм.рт.ст.\n<i>Вітер: </i>{wind} м/с\n____________________________\n\n"
             f"<i>Схід сонця: </i>{sunrise_timestamp.strftime('%H:%M')}\n<i>Захід сонця: </i>{sunset_timestamp.strftime('%H:%M')}\n<i>Тривалість дня: </i>{length_of_the_day}\n____________________________\n"
             f"{forecast_message}", reply_markup=kbd)
-
+        await state.finish()
     except:
         await message.reply("<b>🟡 Не вдалося отримати дані про погоду. Перевірте правильність написання назви міста.</b>\n\n<i>Зверніть увагу: деякі міста потрібно писати лише англійською мовою.</i>")
 
-
-async def play_again(call: types.CallbackQuery):
+async def city(call: types.CallbackQuery):
     await call.message.answer("<b>🌤 Введіть місто, в якому хочете дізнатись погоду.</b>")
+    await SimpleStatsGroup.state1.set()
 
-async def start_command_from_button(call: types.CallbackQuery):
-    await call.message.answer('/start')
+async def press_button(message: types.Message):
+    await message.answer("<b>ℹ️ Щоб дізнатися погоду Вам потрібно натиснути на кнопку під повідомленням, і після чого ввести потрібне Вам місто.</b>", reply_markup=kbd2)
 
 
 
 def register_user(dp: Dispatcher):
-    dp.register_callback_query_handler(play_again, text="weather_check")
-    dp.register_callback_query_handler(start_command_from_button, text="menu")
-    dp.register_message_handler(start_command, commands=["start"])
-    dp.register_message_handler(get_weather)
+    dp.register_callback_query_handler(city, text="weather_check", state="*")
+    dp.register_callback_query_handler(start_command, text="menu", state="*")
+    dp.register_message_handler(start_command, commands=["start"], state="*")
+    dp.register_message_handler(get_weather, state=SimpleStatsGroup.state1)
+    dp.register_message_handler(press_button)
